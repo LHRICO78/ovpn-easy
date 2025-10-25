@@ -48,8 +48,8 @@
 
 
 ## Git & Docker
-- [ ] Initialiser le dépôt Git avec .gitignore
-- [ ] Créer le premier commit
-- [ ] Améliorer le Dockerfile et docker-compose.yml
-- [ ] Ajouter un .dockerignore
+- [x] Initialiser le dépôt Git avec .gitignore
+- [x] Créer le premier commit
+- [x] Améliorer le Dockerfile et docker-compose.yml
+- [x] Ajouter un .dockerignore
 
