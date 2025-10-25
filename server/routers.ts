@@ -5,6 +5,7 @@ import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
 import * as openvpn from "./openvpn";
+import { generateQRCode } from "./qrcode";
 import { TRPCError } from "@trpc/server";
 
 export const appRouter = router({
@@ -95,6 +96,22 @@ export const appRouter = router({
 
   // Client management
   clients: router({
+    get: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const client = await db.getClientById(input.id);
+
+        if (!client) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+
+        if (ctx.user.role !== "admin" && client.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+
+        return client;
+      }),
+
     list: protectedProcedure.query(async ({ ctx }) => {
       const isAdmin = ctx.user.role === "admin";
       const clients = await db.getClients(isAdmin ? undefined : ctx.user.id);
@@ -118,29 +135,12 @@ export const appRouter = router({
       });
     }),
 
-    get: protectedProcedure
-      .input(z.object({ id: z.number() }))
-      .query(async ({ input, ctx }) => {
-        const client = await db.getClientById(input.id);
-
-        if (!client) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Client not found" });
-        }
-
-        // Check permissions
-        if (ctx.user.role !== "admin" && client.userId !== ctx.user.id) {
-          throw new TRPCError({ code: "FORBIDDEN" });
-        }
-
-        return client;
-      }),
-
     create: protectedProcedure
       .input(
         z.object({
           name: z.string().min(1).max(255),
           email: z.string().email().optional(),
-          expiresAt: z.string().optional(),
+          expiresInDays: z.number().int().positive().optional(),
         })
       )
       .mutation(async ({ input, ctx }) => {
@@ -167,7 +167,9 @@ export const appRouter = router({
           ipAddress,
           certificateData: cert,
           privateKeyData: key,
-          expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
+          expiresAt: input.expiresInDays
+            ? new Date(Date.now() + input.expiresInDays * 24 * 60 * 60 * 1000)
+            : null,
           enabled: true,
         });
 
@@ -291,6 +293,44 @@ export const appRouter = router({
         const stats = await db.getClientStats(input.id);
 
         return stats;
+      }),
+
+    getQRCode: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const client = await db.getClientById(input.id);
+
+        if (!client) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+
+        if (ctx.user.role !== "admin" && client.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+
+        if (!client.certificateData || !client.privateKeyData) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Client certificates not found",
+          });
+        }
+
+        const serverConfig = await db.getServerConfig();
+        const vpnInterface = await db.getInterface();
+
+        const config = await openvpn.generateClientConfig({
+          clientName: `client_${client.id}`,
+          publicHost: serverConfig.publicHost,
+          publicPort: serverConfig.publicPort,
+          protocol: vpnInterface.protocol,
+          cert: client.certificateData,
+          key: client.privateKeyData,
+          compression: vpnInterface.compression,
+        });
+
+        const qrCode = await generateQRCode(config);
+
+        return { qrCode };
       }),
   }),
 

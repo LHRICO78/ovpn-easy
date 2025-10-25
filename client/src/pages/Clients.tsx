@@ -26,15 +26,18 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, MoreVertical, Download, Power, PowerOff, Trash2 } from "lucide-react";
+import { Plus, MoreVertical, Download, Power, PowerOff, Trash2, Eye } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Clients() {
+  const [, setLocation] = useLocation();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newClientName, setNewClientName] = useState("");
   const [newClientEmail, setNewClientEmail] = useState("");
+  const [expiresInDays, setExpiresInDays] = useState<number | undefined>(undefined);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
 
   const utils = trpc.useUtils();
@@ -47,6 +50,7 @@ export default function Clients() {
       setIsCreateDialogOpen(false);
       setNewClientName("");
       setNewClientEmail("");
+      setExpiresInDays(undefined);
       toast.success("Client créé avec succès");
     },
     onError: (error) => {
@@ -90,6 +94,7 @@ export default function Clients() {
     createMutation.mutate({
       name: newClientName,
       email: newClientEmail || undefined,
+      expiresInDays: expiresInDays || undefined,
     });
   };
 
@@ -225,6 +230,12 @@ export default function Clients() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem
+                              onClick={() => setLocation(`/clients/${client.id}`)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Voir Détails
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
                               onClick={() =>
                                 handleDownloadConfig(client.id, client.name)
                               }
@@ -306,6 +317,20 @@ export default function Clients() {
                 value={newClientEmail}
                 onChange={(e) => setNewClientEmail(e.target.value)}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="expires">Expiration (jours, optionnel)</Label>
+              <Input
+                id="expires"
+                type="number"
+                min="1"
+                placeholder="30"
+                value={expiresInDays || ""}
+                onChange={(e) => setExpiresInDays(e.target.value ? parseInt(e.target.value) : undefined)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Laissez vide pour aucune expiration
+              </p>
             </div>
           </div>
           <DialogFooter>
