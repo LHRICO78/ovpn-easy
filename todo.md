@@ -45,3 +45,11 @@
 
 - [x] Corriger l'erreur de copie Easy-RSA en mode développement
 
+
+
+## Git & Docker
+- [ ] Initialiser le dépôt Git avec .gitignore
+- [ ] Créer le premier commit
+- [ ] Améliorer le Dockerfile et docker-compose.yml
+- [ ] Ajouter un .dockerignore
+
