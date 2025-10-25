@@ -1,11 +1,21 @@
-import { eq } from "drizzle-orm";
+import { eq, desc, and, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { 
+  InsertUser, 
+  users, 
+  interfaces, 
+  clients, 
+  serverConfig, 
+  connectionStats,
+  InsertClient,
+  InsertInterface,
+  InsertServerConfig,
+  InsertConnectionStat
+} from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -89,4 +99,132 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// Interface queries
+export async function getInterface() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.select().from(interfaces).limit(1);
+  
+  if (result.length === 0) {
+    // Create default interface
+    await db.insert(interfaces).values({});
+    return (await db.select().from(interfaces).limit(1))[0];
+  }
+  
+  return result[0];
+}
+
+export async function updateInterface(id: number, data: Partial<InsertInterface>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(interfaces).set(data).where(eq(interfaces.id, id));
+}
+
+// Client queries
+export async function getClients(userId?: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  if (userId) {
+    return await db.select().from(clients).where(eq(clients.userId, userId)).orderBy(desc(clients.createdAt));
+  }
+  
+  return await db.select().from(clients).orderBy(desc(clients.createdAt));
+}
+
+export async function getClientById(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.select().from(clients).where(eq(clients.id, id)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function createClient(data: InsertClient) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(clients).values(data);
+  return result;
+}
+
+export async function updateClient(id: number, data: Partial<InsertClient>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(clients).set(data).where(eq(clients.id, id));
+}
+
+export async function deleteClient(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.delete(clients).where(eq(clients.id, id));
+}
+
+export async function toggleClient(id: number, enabled: boolean) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(clients).set({ enabled }).where(eq(clients.id, id));
+}
+
+// Server config queries
+export async function getServerConfig() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.select().from(serverConfig).limit(1);
+  
+  if (result.length === 0) {
+    // Create default config
+    await db.insert(serverConfig).values({
+      publicHost: "vpn.example.com",
+      publicPort: 1194,
+    });
+    return (await db.select().from(serverConfig).limit(1))[0];
+  }
+  
+  return result[0];
+}
+
+export async function updateServerConfig(id: number, data: Partial<InsertServerConfig>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(serverConfig).set(data).where(eq(serverConfig.id, id));
+}
+
+// Connection stats queries
+export async function getClientStats(clientId: number, limit = 10) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return await db
+    .select()
+    .from(connectionStats)
+    .where(eq(connectionStats.clientId, clientId))
+    .orderBy(desc(connectionStats.connectedAt))
+    .limit(limit);
+}
+
+export async function createConnectionStat(data: InsertConnectionStat) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.insert(connectionStats).values(data);
+}
+
+export async function getActiveConnections() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return await db
+    .select()
+    .from(connectionStats)
+    .where(isNull(connectionStats.disconnectedAt))
+    .orderBy(desc(connectionStats.connectedAt));
+}
+

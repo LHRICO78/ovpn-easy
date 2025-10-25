@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  ovpn-easy:
+    build: .
+    container_name: ovpn-easy
+    restart: unless-stopped
+    ports:
+      - "1194:1194/udp"  # OpenVPN port
+      - "51821:3000"      # Web interface
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET:-changeme}
+      - VITE_APP_TITLE=OpenVPN Easy
+      - VITE_APP_LOGO=/logo.png
+      - PUBLIC_HOST=${PUBLIC_HOST:-vpn.example.com}
+      - PUBLIC_PORT=${PUBLIC_PORT:-1194}
+    volumes:
+      - openvpn-data:/etc/openvpn
+      - openvpn-logs:/var/log/openvpn
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    sysctls:
+      - net.ipv4.ip_forward=1
+
+volumes:
+  openvpn-data:
+    driver: local
+  openvpn-logs:
+    driver: local
+
