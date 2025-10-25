@@ -1,20 +1,58 @@
 version: '3.8'
 
 services:
+  # Database (MySQL/TiDB)
+  db:
+    image: mysql:8.0
+    container_name: ovpn-easy-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-ovpn_easy}
+      MYSQL_USER: ${DB_USER:-ovpn_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-ovpn_password}
+    volumes:
+      - db-data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # OpenVPN Easy Application
   ovpn-easy:
     build: .
     container_name: ovpn-easy
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
-      - "1194:1194/udp"  # OpenVPN port
-      - "51821:3000"      # Web interface
+      - "${OPENVPN_PORT:-1194}:1194/udp"  # OpenVPN port
+      - "${WEB_PORT:-51821}:3000"          # Web interface
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - JWT_SECRET=${JWT_SECRET:-changeme}
-      - VITE_APP_TITLE=OpenVPN Easy
-      - VITE_APP_LOGO=/logo.png
+      # Database
+      - DATABASE_URL=mysql://${DB_USER:-ovpn_user}:${DB_PASSWORD:-ovpn_password}@db:3306/${DB_NAME:-ovpn_easy}
+      
+      # Authentication
+      - JWT_SECRET=${JWT_SECRET:-changeme-generate-a-secure-secret}
+      - OAUTH_SERVER_URL=${OAUTH_SERVER_URL:-https://api.manus.im}
+      - VITE_OAUTH_PORTAL_URL=${VITE_OAUTH_PORTAL_URL:-https://auth.manus.im}
+      
+      # Application
+      - VITE_APP_TITLE=${APP_TITLE:-OpenVPN Easy}
+      - VITE_APP_LOGO=${APP_LOGO:-/logo.png}
+      - VITE_APP_ID=${APP_ID:-}
+      
+      # OpenVPN Configuration
       - PUBLIC_HOST=${PUBLIC_HOST:-vpn.example.com}
       - PUBLIC_PORT=${PUBLIC_PORT:-1194}
+      
+      # Owner (admin user)
+      - OWNER_OPEN_ID=${OWNER_OPEN_ID:-}
+      - OWNER_NAME=${OWNER_NAME:-Admin}
     volumes:
       - openvpn-data:/etc/openvpn
       - openvpn-logs:/var/log/openvpn
@@ -24,8 +62,16 @@ services:
       - /dev/net/tun:/dev/net/tun
     sysctls:
       - net.ipv4.ip_forward=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
+  db-data:
+    driver: local
   openvpn-data:
     driver: local
   openvpn-logs:
