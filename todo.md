@@ -62,3 +62,7 @@
 
 - [x] Corriger les URLs GitHub dans README.md et DOCKER.md
 
+
+
+- [x] Corriger l'erreur de build Docker - dossier patches manquant
+
