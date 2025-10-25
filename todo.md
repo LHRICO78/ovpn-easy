@@ -53,3 +53,8 @@
 - [x] Améliorer le Dockerfile et docker-compose.yml
 - [x] Ajouter un .dockerignore
 
+
+
+## Publication
+- [x] Publier le projet sur GitHub
+
