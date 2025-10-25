@@ -20,7 +20,7 @@ La méthode la plus simple consiste à utiliser Docker Compose qui configure aut
 ### 1. Cloner le projet
 
 ```bash
-git clone https://github.com/votre-repo/ovpn-easy.git
+git clone https://github.com/LHRICO78/ovpn-easy.git
 cd ovpn-easy
 ```
 
@@ -267,6 +267,6 @@ docker-compose down -v
 
 Pour plus d'informations, consultez :
 - [README.md](README.md) - Documentation générale
-- [Issues GitHub](https://github.com/votre-repo/ovpn-easy/issues) - Signaler un problème
+- [Issues GitHub](https://github.com/LHRICO78/ovpn-easy/issues) - Signaler un problème
 - [Documentation OpenVPN](https://openvpn.net/community-resources/) - Documentation officielle OpenVPN
 

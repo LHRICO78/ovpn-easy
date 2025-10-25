@@ -32,7 +32,7 @@ La méthode la plus simple pour déployer OpenVPN Easy est d'utiliser Docker Com
 
 ```bash
 # Cloner le dépôt
-git clone https://github.com/votre-repo/ovpn-easy.git
+git clone https://github.com/LHRICO78/ovpn-easy.git
 cd ovpn-easy
 
 # Créer le fichier docker-compose.yml
@@ -185,7 +185,7 @@ Pour contribuer au projet, vous aurez besoin de Node.js 18+ avec pnpm activé, D
 
 ```bash
 # Cloner le dépôt
-git clone https://github.com/votre-repo/ovpn-easy.git
+git clone https://github.com/LHRICO78/ovpn-easy.git
 cd ovpn-easy
 
 # Installer les dépendances

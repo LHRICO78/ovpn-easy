@@ -58,3 +58,7 @@
 ## Publication
 - [x] Publier le projet sur GitHub
 
+
+
+- [x] Corriger les URLs GitHub dans README.md et DOCKER.md
+
