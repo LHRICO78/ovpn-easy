@@ -18,14 +18,9 @@ const LOG_DIR = isDev ? `${BASE_DIR}/logs` : "/var/log/openvpn";
  * Initialize Easy-RSA PKI if not exists
  */
 export async function initPKI() {
-  if (!existsSync(EASY_RSA_DIR)) {
-    await mkdir(EASY_RSA_DIR, { recursive: true });
-    await execAsync(`cp -r /usr/share/easy-rsa/* ${EASY_RSA_DIR}/`);
-  }
-
-  if (!existsSync(PKI_DIR)) {
-    // In development, we'll simulate PKI without actually running easyrsa
-    if (isDev) {
+  // In development mode, skip Easy-RSA setup entirely
+  if (isDev) {
+    if (!existsSync(PKI_DIR)) {
       console.log("[DEV MODE] Simulating PKI initialization...");
       await mkdir(`${PKI_DIR}/issued`, { recursive: true });
       await mkdir(`${PKI_DIR}/private`, { recursive: true });
@@ -34,9 +29,17 @@ export async function initPKI() {
       await writeFile(`${PKI_DIR}/dh.pem`, "# DEV MODE - Mock DH Parameters\n");
       await writeFile(`${PKI_DIR}/issued/server.crt`, "# DEV MODE - Mock Server Certificate\n");
       await writeFile(`${PKI_DIR}/private/server.key`, "# DEV MODE - Mock Server Key\n");
-      return;
     }
-    
+    return;
+  }
+
+  // Production mode: use real Easy-RSA
+  if (!existsSync(EASY_RSA_DIR)) {
+    await mkdir(EASY_RSA_DIR, { recursive: true });
+    await execAsync(`cp -r /usr/share/easy-rsa/* ${EASY_RSA_DIR}/`);
+  }
+
+  if (!existsSync(PKI_DIR)) {
     await execAsync(`cd ${EASY_RSA_DIR} && ./easyrsa init-pki`);
     await execAsync(`cd ${EASY_RSA_DIR} && ./easyrsa --batch build-ca nopass`);
     await execAsync(`cd ${EASY_RSA_DIR} && ./easyrsa gen-dh`);

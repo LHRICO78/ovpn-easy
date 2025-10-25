@@ -41,3 +41,7 @@
 ## Bugs à corriger
 - [x] Corriger l'erreur de permissions EACCES sur /etc/openvpn en environnement de développement
 
+
+
+- [x] Corriger l'erreur de copie Easy-RSA en mode développement
+
