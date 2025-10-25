@@ -36,3 +36,8 @@
 - [ ] Ajouter le support multilingue
 - [ ] Créer un système de notifications
 
+
+
+## Bugs à corriger
+- [x] Corriger l'erreur de permissions EACCES sur /etc/openvpn en environnement de développement
+

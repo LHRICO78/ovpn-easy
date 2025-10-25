@@ -6,9 +6,13 @@ import path from "path";
 
 const execAsync = promisify(exec);
 
-const OPENVPN_DIR = "/etc/openvpn";
-const EASY_RSA_DIR = "/etc/openvpn/easy-rsa";
+// Use local directories in development, system directories in production
+const isDev = process.env.NODE_ENV !== "production";
+const BASE_DIR = isDev ? "/tmp/ovpn-easy" : "/etc/openvpn";
+const OPENVPN_DIR = BASE_DIR;
+const EASY_RSA_DIR = `${BASE_DIR}/easy-rsa`;
 const PKI_DIR = `${EASY_RSA_DIR}/pki`;
+const LOG_DIR = isDev ? `${BASE_DIR}/logs` : "/var/log/openvpn";
 
 /**
  * Initialize Easy-RSA PKI if not exists
@@ -20,6 +24,19 @@ export async function initPKI() {
   }
 
   if (!existsSync(PKI_DIR)) {
+    // In development, we'll simulate PKI without actually running easyrsa
+    if (isDev) {
+      console.log("[DEV MODE] Simulating PKI initialization...");
+      await mkdir(`${PKI_DIR}/issued`, { recursive: true });
+      await mkdir(`${PKI_DIR}/private`, { recursive: true });
+      await writeFile(`${PKI_DIR}/ca.crt`, "# DEV MODE - Mock CA Certificate\n");
+      await writeFile(`${PKI_DIR}/ta.key`, "# DEV MODE - Mock TLS Auth Key\n");
+      await writeFile(`${PKI_DIR}/dh.pem`, "# DEV MODE - Mock DH Parameters\n");
+      await writeFile(`${PKI_DIR}/issued/server.crt`, "# DEV MODE - Mock Server Certificate\n");
+      await writeFile(`${PKI_DIR}/private/server.key`, "# DEV MODE - Mock Server Key\n");
+      return;
+    }
+    
     await execAsync(`cd ${EASY_RSA_DIR} && ./easyrsa init-pki`);
     await execAsync(`cd ${EASY_RSA_DIR} && ./easyrsa --batch build-ca nopass`);
     await execAsync(`cd ${EASY_RSA_DIR} && ./easyrsa gen-dh`);
@@ -35,6 +52,18 @@ export async function generateClientCertificate(clientName: string) {
   await initPKI();
   
   const sanitizedName = clientName.replace(/[^a-zA-Z0-9_-]/g, "_");
+  
+  // In development mode, generate mock certificates
+  if (isDev) {
+    console.log(`[DEV MODE] Generating mock certificate for ${sanitizedName}`);
+    const cert = `# DEV MODE - Mock Client Certificate for ${sanitizedName}\n-----BEGIN CERTIFICATE-----\nMockCertificateData\n-----END CERTIFICATE-----`;
+    const key = `# DEV MODE - Mock Client Key for ${sanitizedName}\n-----BEGIN PRIVATE KEY-----\nMockPrivateKeyData\n-----END PRIVATE KEY-----`;
+    
+    await writeFile(`${PKI_DIR}/issued/${sanitizedName}.crt`, cert);
+    await writeFile(`${PKI_DIR}/private/${sanitizedName}.key`, key);
+    
+    return { cert, key, clientName: sanitizedName };
+  }
   
   await execAsync(
     `cd ${EASY_RSA_DIR} && ./easyrsa build-client-full ${sanitizedName} nopass`
@@ -187,6 +216,11 @@ export async function generateClientConfig(params: {
  * Start OpenVPN server
  */
 export async function startServer() {
+  if (isDev) {
+    console.log("[DEV MODE] Simulating OpenVPN server start");
+    return;
+  }
+  
   try {
     await execAsync(`systemctl start openvpn@server`);
   } catch (error) {
@@ -199,6 +233,11 @@ export async function startServer() {
  * Stop OpenVPN server
  */
 export async function stopServer() {
+  if (isDev) {
+    console.log("[DEV MODE] Simulating OpenVPN server stop");
+    return;
+  }
+  
   try {
     await execAsync(`systemctl stop openvpn@server`);
   } catch (error) {
@@ -211,6 +250,11 @@ export async function stopServer() {
  * Restart OpenVPN server
  */
 export async function restartServer() {
+  if (isDev) {
+    console.log("[DEV MODE] Simulating OpenVPN server restart");
+    return;
+  }
+  
   try {
     await execAsync(`systemctl restart openvpn@server`);
   } catch (error) {
@@ -223,6 +267,11 @@ export async function restartServer() {
  * Get OpenVPN server status
  */
 export async function getServerStatus() {
+  if (isDev) {
+    // In dev mode, return false to indicate server is not running
+    return false;
+  }
+  
   try {
     const { stdout } = await execAsync(`systemctl is-active openvpn@server`);
     return stdout.trim() === "active";
@@ -236,15 +285,14 @@ export async function getServerStatus() {
  */
 export async function getConnectedClients() {
   try {
+    const statusFile = `${LOG_DIR}/openvpn-status.log`;
+    
     // Check if file exists first
-    if (!existsSync("/var/log/openvpn/openvpn-status.log")) {
+    if (!existsSync(statusFile)) {
       return [];
     }
 
-    const statusContent = await readFile(
-      "/var/log/openvpn/openvpn-status.log",
-      "utf-8"
-    );
+    const statusContent = await readFile(statusFile, "utf-8");
 
     const lines = statusContent.split("\n");
     const clients: Array<{
